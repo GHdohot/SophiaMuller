@@ -16,7 +16,72 @@
         const BRAZIL_BOT_URL = "https://t.me/sophi_mullerbot";
         const GLOBAL_BOT_URL = "https://t.me/sophiaamuller_bot";
 
-        const getRedirectUrl = async () => {
+        // Traduções ficam dentro do próprio HTML; não é necessária uma API de tradução.
+        const translations = {
+            pt: {
+                pageTitle: "Perfil - Sophia Muller",
+                description: "Para ser redirecionado para o ambiente exclusivo, basta clicar no botão abaixo:",
+                buttonLabel: "Conteúdo Exclusivo",
+                footer: "Todos os direitos reservados a Sophia Muller,<br class=\"footer-break\">qualquer vazamento de imagens<br class=\"footer-break\">pessoais é considerado crime sob<br class=\"footer-break\">Código Penal (Decreto-Lei 2.848, de 1940)."
+            },
+            en: {
+                pageTitle: "Profile - Sophia Muller",
+                description: "To access the exclusive area, simply click the button below:",
+                buttonLabel: "Exclusive Content",
+                footer: "All rights reserved to Sophia Muller,<br class=\"footer-break\">any leak of personal images<br class=\"footer-break\">is considered a crime under<br class=\"footer-break\">the Brazilian Penal Code (Decree-Law 2,848 of 1940)."
+            },
+            es: {
+                pageTitle: "Perfil - Sophia Muller",
+                description: "Para acceder al entorno exclusivo, solo tienes que hacer clic en el botón de abajo:",
+                buttonLabel: "Contenido Exclusivo",
+                footer: "Todos los derechos reservados a Sophia Muller,<br class=\"footer-break\">cualquier filtración de imágenes<br class=\"footer-break\">personales se considera un delito según<br class=\"footer-break\">el Código Penal brasileño (Decreto-Ley 2.848 de 1940)."
+            },
+            fr: {
+                pageTitle: "Profil - Sophia Muller",
+                description: "Pour accéder à l'espace exclusif, cliquez simplement sur le bouton ci-dessous :",
+                buttonLabel: "Contenu Exclusif",
+                footer: "Tous les droits réservés à Sophia Muller,<br class=\"footer-break\">toute fuite d'images personnelles<br class=\"footer-break\">est considérée comme un crime selon<br class=\"footer-break\">le Code pénal brésilien (décret-loi 2 848 de 1940)."
+            },
+            de: {
+                pageTitle: "Profil - Sophia Muller",
+                description: "Um zum exklusiven Bereich weitergeleitet zu werden, klicke einfach auf die Schaltfläche unten:",
+                buttonLabel: "Exklusive Inhalte",
+                footer: "Alle Rechte vorbehalten für Sophia Muller,<br class=\"footer-break\">jede Weitergabe persönlicher Bilder<br class=\"footer-break\">gilt gemäß dem brasilianischen<br class=\"footer-break\">Strafgesetzbuch als Straftat."
+            },
+            it: {
+                pageTitle: "Profilo - Sophia Muller",
+                description: "Per accedere all'ambiente esclusivo, fai clic sul pulsante qui sotto:",
+                buttonLabel: "Contenuto Esclusivo",
+                footer: "Tutti i diritti riservati a Sophia Muller,<br class=\"footer-break\">qualsiasi diffusione di immagini personali<br class=\"footer-break\">è considerata un reato secondo<br class=\"footer-break\">il Codice Penale brasiliano."
+            }
+        };
+
+        const countryLanguageMap = {
+            BR: "pt", PT: "pt",
+            US: "en", GB: "en", CA: "en", AU: "en", NZ: "en", IE: "en", ZA: "en", SG: "en",
+            ES: "es", MX: "es", AR: "es", CL: "es", CO: "es", PE: "es", UY: "es", PY: "es", BO: "es", EC: "es", VE: "es", CR: "es", PA: "es", DO: "es", GT: "es", HN: "es", NI: "es", SV: "es",
+            FR: "fr", BE: "fr", LU: "fr", MC: "fr",
+            DE: "de", AT: "de", LI: "de",
+            IT: "it", SM: "it", VA: "it"
+        };
+
+        const getBrowserLanguage = () => {
+            const language = (navigator.language || "en").toLowerCase().split("-")[0];
+            return translations[language] ? language : "en";
+        };
+
+        const applyTranslations = (language) => {
+            const selected = translations[language] || translations.en;
+            document.documentElement.lang = language === "pt" ? "pt-BR" : language;
+            document.title = selected.pageTitle;
+            document.querySelector("[data-i18n=description]").textContent = selected.description;
+            document.querySelector("[data-i18n=button-label]").textContent = selected.buttonLabel;
+            document.querySelector("[data-i18n=footer]").innerHTML = selected.footer;
+        };
+
+        const getVisitorInfo = async () => {
+            let countryCode = null;
+
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 4000);
@@ -26,34 +91,36 @@
                 });
                 clearTimeout(timeout);
 
-                if (!response.ok) {
-                    throw new Error("Falha ao consultar localização");
+                if (response.ok) {
+                    const location = await response.json();
+                    countryCode = location.country_code || null;
                 }
-
-                const location = await response.json();
-                return location.country_code === "BR"
-                    ? BRAZIL_BOT_URL
-                    : GLOBAL_BOT_URL;
             } catch (error) {
-                // Em caso de falha, direciona para o bot global.
-                return GLOBAL_BOT_URL;
+                // Usa o idioma do navegador e o bot global como fallback.
             }
+
+            const language = countryLanguageMap[countryCode] || getBrowserLanguage();
+            return {
+                language,
+                redirectUrl: countryCode === "BR" ? BRAZIL_BOT_URL : GLOBAL_BOT_URL
+            };
         };
 
         window.addEventListener("DOMContentLoaded", async () => {
             const telegramLink = document.querySelector("[data-telegram-link]");
-            const redirectUrl = await getRedirectUrl();
+            const visitorInfo = await getVisitorInfo();
+            applyTranslations(visitorInfo.language);
 
             if (telegramLink) {
-                telegramLink.href = redirectUrl;
+                telegramLink.href = visitorInfo.redirectUrl;
                 telegramLink.addEventListener("click", (event) => {
                     event.preventDefault();
-                    window.location.href = redirectUrl;
+                    window.location.href = visitorInfo.redirectUrl;
                 });
             }
 
             setTimeout(() => {
-                window.location.replace(redirectUrl);
+                window.location.replace(visitorInfo.redirectUrl);
             }, 5000);
         });
     })();
@@ -80,7 +147,7 @@
         <div class="profile-info">
             <h1 class="profile-name">Sophia Muller</h1>
             <p style="color: rgba(126, 59, 88, 0.85); font-size: 1.0rem; margin-top: 0.5rem; text-shadow: 0 1px 2px rgba(255,255,255,0.5);">
-                Para ser redirecionado para o ambiente exclusivo, basta clicar no botão abaixo:
+                <span data-i18n="description">Para ser redirecionado para o ambiente exclusivo, basta clicar no botão abaixo:</span>
             </p>
         </div>
         
@@ -90,7 +157,7 @@
                         <!-- Telegram -->
             <a href="https://t.me/sophiaamuller_bot" target="_blank" rel="noopener noreferrer" class="social-btn telegram-btn" data-telegram-link>
                 <i class="fab fa-telegram"></i>
-                <span>Conteúdo Exclusivo</span>
+                <span data-i18n="button-label">Conteúdo Exclusivo</span>
                 <span class="gift-emoji">🥇</span>
             </a>
 
@@ -100,7 +167,7 @@
     <!-- Rodapé com aviso legal -->
     <footer class="footer">
         <div class="footer-content">
-            <p class="footer-text">
+            <p class="footer-text" data-i18n="footer">
                 Todos os direitos reservados a Sophia Muller,<br class="footer-break">qualquer vazamento de imagens<br class="footer-break">
                 pessoais é considerado crime sob<br class="footer-break">
                 Código Penal (Decreto-Lei 2.848, de 1940).
@@ -536,34 +603,5 @@
         }
     </style>
 
-      <!-- Meta Pixel Code -->
-  <script>
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-
-    fbq('init', '1041679311601000');
-
-    // Gera eventID pro PageView
-    const pageViewEventId = 'pv_' + Date.now();
-
-    // Envia o PageView com o eventID
-    fbq('track', 'PageView', {}, { eventID: pageViewEventId });
-
-    // Salva o eventID em cookie pra o CAPI usar também
-    document.cookie = "fb_pageview_id=" + pageViewEventId + "; path=/";
-  </script>
-
-  <noscript>
-    <img height="1" width="1" style="display:none"
-    src="https://www.facebook.com/tr?id=1041679311601000&ev=PageView&noscript=1"/>
-  </noscript>
-  <!-- End Meta Pixel Code -->
-   
 </body>
 </html>
